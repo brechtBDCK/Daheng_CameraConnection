@@ -1,3 +1,6 @@
+"""
+Interactive Daheng capture script with live preview, frame saving, and video capture.
+"""
 import gxipy as gx
 import cv2
 import numpy as np
@@ -42,6 +45,7 @@ def main():
     os.makedirs(SAVE_PATH, exist_ok=True)
     print(f"✅ Output will be saved to '{SAVE_PATH}/'")
 
+    # Discover and connect to the first Daheng camera detected on the bus.
     device_manager = gx.DeviceManager()
     dev_num, dev_info_list = device_manager.update_device_list()
     if dev_num == 0:
@@ -97,6 +101,7 @@ def main():
                 if frame is None:
                     continue
 
+                # Work on a copy so the saved/recorded frame stays untouched.
                 display_frame = frame.copy() # Create a copy for drawing text
 
                 # Add recording status text to the display frame
@@ -104,9 +109,11 @@ def main():
                     cv2.putText(display_frame, 'RECORDING', (10, 30), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
+                # Show the live preview window.
                 cv2.imshow('Interactive Camera Control', display_frame)
 
                 # --- Handle Keyboard Input ---
+                # A 1ms wait lets OpenCV process key presses without blocking acquisition.
                 key = cv2.waitKey(1) & 0xFF
 
                 # Quit Button ('q')

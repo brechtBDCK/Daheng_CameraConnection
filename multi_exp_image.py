@@ -1,3 +1,6 @@
+"""
+Batch capture helper that records bracketed frames and creates an HDR output.
+"""
 import os
 import cv2
 import numpy as np
@@ -18,6 +21,7 @@ def capture_images_with_exposures(device: gx.Device, exposure_times, output_fold
 
 
     try:
+        # Capture one frame per requested exposure value.
         for i, exposure in enumerate(exposure_times):
             device.ExposureTime.set(float(exposure))
             # Start acquisition stream
@@ -39,6 +43,7 @@ def capture_images_with_exposures(device: gx.Device, exposure_times, output_fold
             print(f"Saved image: {image_path}")
             device.stream_off()
     finally:
+        # Make sure streaming ends even if an exception occurs.
         device.stream_off()
 
 

@@ -1,88 +1,109 @@
-The Core of the Problem
-Different Operating Systems, Different Libraries:
+## VIRAL Camera Connection
 
-Windows uses dynamic-link libraries with a .dll extension. The Windows SDK you installed provides these.
+Python utilities for controlling Daheng cameras from WSL. The repo contains:
 
-Linux (including WSL) uses shared object libraries with a .so extension.
+1. `main.py` – interactive viewer for previewing, saving frames, and recording video streams.
+2. `multi_exp_image.py` – scripted capture pipeline that records multiple exposures and fuses them into an HDR output.
 
-The error message Cannot find libgxiapi.so is your Linux environment telling you it cannot find the required Linux library.
+### Features
+- Works with Daheng cameras via `gxipy`
+- Interactive controls (save frame, toggle recording, quit)
+- HDR workflow using OpenCV’s Debevec + Drago operators
+- Ready-to-run instructions for WSL + USB/IP setup
 
-WSL is a Separate Linux Machine:
+---
 
-Think of WSL as a virtual machine running a full Linux kernel. The programs you run inside it (like your Python interpreter) are Linux programs. They cannot use the Windows .dll files from your host system.
+## Prerequisites
+- Windows 11 with WSL2 (Ubuntu recommended)
+- Daheng Galaxy SDK for Linux
+- Python 3.10+ with `gxipy`, `opencv-python`, `numpy`
+- USB/IP tooling (`usbipd-win`) to pass the camera through to WSL
 
-Even though WSL2 has excellent hardware integration (it can access USB ports and network interfaces from the host), it needs its own Linux drivers and libraries to communicate with that hardware.
+---
 
-The secondary NameError: name 'dll' is not defined is just a consequence of the first error. The gxipy code failed to load the .so file, so the variable it was supposed to be assigned to (dll) was never created, causing a crash later on.
+## Install the Daheng SDK inside WSL
+WSL is its own Linux environment, so Windows `.dll` files are not usable. Install the Linux SDK inside WSL to provide the `libgxiapi.so` shared object.
 
-The Solution: Install the Linux SDK inside WSL
-You need to download and install the Linux version of the Daheng Galaxy SDK directly within your WSL distribution.
+1. Download the Linux SDK (`Galaxy_Linux-x86_Gige-U3_*.run` or `.tar.gz`) from the Daheng Imaging Download Center.
+2. Copy it into WSL (replace the username as needed):
+   ```bash
+   cp /mnt/c/Users/<username>/Downloads/Galaxy_Linux*.run ~/
+   cd ~
+   ```
+3. Make the installer executable:
+   ```bash
+   chmod +x Galaxy_Linux-x86_Gige-U3_*.run
+   ```
+4. Run it with sudo and follow the prompts (default path is `/opt/DxImageCard/Galaxy_SDK/`):
+   ```bash
+   sudo ./Galaxy_Linux-x86_Gige-U3_*.run
+   ```
+5. Let Linux know where to find `libgxiapi.so`:
+   ```bash
+   export LD_LIBRARY_PATH=/opt/DxImageCard/Galaxy_SDK/lib:$LD_LIBRARY_PATH
+   echo 'export LD_LIBRARY_PATH=/opt/DxImageCard/Galaxy_SDK/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+   source ~/.bashrc
+   ```
 
-Here is a step-by-step guide:
+---
 
-Step 1: Download the Linux SDK
-
-Go to the Daheng Imaging Download Center.
-
-Find the SDK for Linux. The file will likely have a name like Galaxy_Linux-x86_Gige-U3_... and will probably be a .run file or a .tar.gz archive.
-
-Download it to your Windows Downloads folder.
-
-Step 2: Move the Installer into WSL
-
-Open your WSL terminal. Your Windows C: drive is automatically mounted under /mnt/c/. You can copy the file from your Windows Downloads folder into your WSL home directory.
-
-Bash
-
-# Example: Replace 'YourWindowsUsername' with your actual username
-cp /mnt/c/Users/YourWindowsUsername/Downloads/Galaxy_Linux*.run ~/
-Navigate to your home directory:
-
-Bash
-
-cd ~
-Step 3: Make the Installer Executable
-
-You need to give the .run file permission to be executed.
-
-Bash
-
-# Replace the filename with the one you downloaded
-chmod +x Galaxy_Linux-x86_Gige-U3_*.run
-Step 4: Run the Installer
-
-Run the installer using sudo because it needs to install files into system directories.
-
-Bash
-
-# Replace the filename with the one you downloaded
-sudo ./Galaxy_Linux-x86_Gige-U3_*.run
-Follow the on-screen instructions. Install it to the default location, which is usually somewhere like /opt/DxImageCard/Galaxy_SDK/.
-
-Step 5: Set the Library Path Environment Variable (Very Important!)
-
-This is the step that directly solves the Cannot find libgxiapi.so error. The Linux system needs to know where to look for the .so files you just installed. You do this by setting the LD_LIBRARY_PATH environment variable.
-
-The Daheng libraries are typically installed in /opt/DxImageCard/Galaxy_SDK/lib/.
-
-Set it for your current session (for testing):
-
-Bash
-
-export LD_LIBRARY_PATH=/opt/DxImageCard/Galaxy_SDK/lib:$LD_LIBRARY_PATH
-Make it permanent: To avoid typing the command above every time you open a new terminal, add it to your shell's startup file (e.g., ~/.bashrc).
-
-Bash
-
-echo 'export LD_LIBRARY_PATH=/opt/DxImageCard/Galaxy_SDK/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
-source ~/.bashrc
-This appends the command to your .bashrc file and then re-loads the file to apply the change to your current session.
-
-
-
-
-## Next pass through the usb camera to wsl (powershell with admin rights)
+## Pass the USB camera to WSL
+Run these PowerShell commands as Administrator on Windows:
+```powershell
 usbipd list
-usbipd bind --busid 2-18 --force
-usbipd attach --wsl --busid 2-18
---> in wsl check with lsusb if the daheng camera is visible
+usbipd bind --busid <BUSID> --force
+usbipd attach --wsl --busid <BUSID>
+```
+Then in WSL verify visibility with:
+```bash
+lsusb
+```
+
+---
+
+## Project Setup
+1. Create and activate a virtual environment (optional but recommended).
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt   # or manually install gxipy, opencv-python, numpy
+   ```
+3. Confirm the camera is detected:
+   ```bash
+   python - <<'PY'
+   import gxipy as gx
+   dm = gx.DeviceManager()
+   print("Cameras:", dm.update_device_list()[0])
+   PY
+   ```
+
+---
+
+## Usage
+### Interactive viewer (`main.py`)
+```bash
+python main.py
+```
+Controls:
+- `s` – save current frame to `output/`
+- `r` – toggle AVI recording
+- `q` – quit and close the camera
+
+Customize capture settings (exposure, gain, frame size, save path) at the top of the script.
+
+### HDR capture pipeline (`multi_exp_image.py`)
+```bash
+python multi_exp_image.py
+```
+This script:
+1. Captures a bracketed exposure series (tweak `exposure_times` in the script).
+2. Writes images to `output_images/`.
+3. Merges them into `output_images/hdr_image.png`.
+
+---
+
+## Troubleshooting
+- **`Cannot find libgxiapi.so`** – ensure the SDK is installed in WSL and `LD_LIBRARY_PATH` includes its `lib` directory.
+- **`NameError: 'dll'`** – consequence of the missing library above; fix the library path.
+- **Camera not detected** – reattach with `usbipd`, confirm with `lsusb`, then re-run the Python script.
+
+Happy capturing!
