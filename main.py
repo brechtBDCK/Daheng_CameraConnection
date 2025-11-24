@@ -14,7 +14,7 @@ import time
 IS_COLOR = True
 
 # 2. Camera Parameters
-EXPOSURE_TIME = 1_000_000           # Exposure time in microseconds (e.g., 20000 -> 20ms)
+EXPOSURE_TIME = 40_000           # Exposure time in microseconds (e.g., 20000 -> 20ms)
 GAIN = 5.0                      # Gain in dB (e.g., 10.0)
 FRAME_RATE = 125                # Target frames per second (e.g., 20)
 RESOLUTION_W = 2048             # Frame width in pixels
