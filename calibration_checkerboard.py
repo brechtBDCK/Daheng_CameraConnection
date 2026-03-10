@@ -5,12 +5,12 @@ import os
 import json
 
 # --- CONFIGURATION ---
-# Dimensions of internal corners (width, height)
+# Dimensions of INTERNAL corners (width, height), which is one less than the number of squares in each direction
 CHECKERBOARD = (7, 10) 
 # Size of one square in your defined unit (mm)
 SQUARE_SIZE = 12.0 
 # Image directory path
-IMAGE_DIR = 'calibration_images/*.png' 
+IMAGE_DIR = 'calibration_images_4mm/*.png' 
 
 def calibrate_camera():
     # Termination criteria for sub-pixel corner refinement
@@ -44,7 +44,7 @@ def calibrate_camera():
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Find the chess board corners
-        # Flags help with adapting to lighting or finding the board in the image
+        # Flags help with adapting to lighting or finding the board in the ima
         ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE +cv2.CALIB_CB_FAST_CHECK) #type: ignore
 
         if ret == True:
@@ -122,10 +122,10 @@ def calibrate_camera():
         "image_height": h
     }
 
-    with open("camera_intrinsics_daheng.json", "w") as json_file:
+    with open("camera_intrinsics_daheng_4mmLens.json", "w") as json_file:
         json.dump(calibration_data, json_file, indent=4)
 
-    print("\nSaved calibration data to 'camera_intrinsics_daheng.json'.")
+    print("\nSaved calibration data to 'camera_intrinsics_daheng_4mmLens.json'.")
 
 if __name__ == "__main__":
     calibrate_camera()

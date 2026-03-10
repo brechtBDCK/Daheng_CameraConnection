@@ -9,16 +9,21 @@ import time
 
 # --- USER CONFIGURATION ---
 
-
 # 2. Camera Parameters
-EXPOSURE_TIME = 10_000           # Exposure time in microseconds (e.g., 20000 -> 20ms)
-GAIN = 5.0                      # Gain in dB (e.g., 10.0)
-FRAME_RATE = 125                # Target frames per second (e.g., 20)
+EXPOSURE_TIME = 80_000           # Exposure time in microseconds (e.g., 20_000 -> 20ms)
+GAIN = 1.0                      # Gain in dB (e.g., 10.0)
+FRAME_RATE = 30                # Target frames per second (e.g., 20)
 RESOLUTION_W = 2048             # Frame width in pixels
 RESOLUTION_H = 1536             # Frame height in pixels
 
 # 3. Saving Options
 SAVE_PATH = 'output'            # Directory to save images/videos
+
+# 4. Live Sharpness Indicator
+SHARPNESS_ENABLED = True        # Toggle sharpness indicator on live preview
+SHARPNESS_DOWNSCALE = 0.5       # Scale factor for sharpness calc (0 < value <= 1)
+SHARPNESS_EVERY_N_FRAMES = 1    # Compute sharpness every N frames
+SHARPNESS_EMA_ALPHA = 0.2       # Smoothing for displayed sharpness (0-1)
 
 # --- END OF CONFIGURATION ---
 
@@ -34,6 +39,18 @@ def process_color_frame(raw_image):
     # Debayer the raw image to BGR. Use COLOR_BAYER_BG2BGR if colors are swapped.
     color_image = cv2.cvtColor(numpy_image, cv2.COLOR_BAYER_BG2BGR)
     return color_image
+
+def compute_sharpness_value(frame, downscale):
+    """
+    Returns a focus/clarity metric using the variance of the Laplacian.
+    Higher values generally indicate a sharper image.
+    """
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    if downscale < 1.0:
+        new_w = max(1, int(gray.shape[1] * downscale))
+        new_h = max(1, int(gray.shape[0] * downscale))
+        gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    return float(cv2.Laplacian(gray, cv2.CV_64F).var())
 
 def main():
     """
@@ -90,6 +107,8 @@ def main():
         
         is_recording = False
         video_writer = None
+        frame_index = 0
+        sharpness_ema = None
 
         while True:
             raw_image = cam.data_stream[0].get_image(timeout=100)
@@ -105,6 +124,27 @@ def main():
                 if is_recording:
                     cv2.putText(display_frame, 'RECORDING', (10, 30), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+                # Add sharpness indicator to the display frame
+                if SHARPNESS_ENABLED and frame_index % SHARPNESS_EVERY_N_FRAMES == 0:
+                    sharpness_now = compute_sharpness_value(frame, SHARPNESS_DOWNSCALE)
+                    if sharpness_ema is None:
+                        sharpness_ema = sharpness_now
+                    else:
+                        sharpness_ema = (
+                            SHARPNESS_EMA_ALPHA * sharpness_now
+                            + (1 - SHARPNESS_EMA_ALPHA) * sharpness_ema
+                        )
+                if SHARPNESS_ENABLED and sharpness_ema is not None:
+                    cv2.putText(
+                        display_frame,
+                        f"Sharpness: {sharpness_ema:.1f}",
+                        (10, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (0, 255, 0),
+                        2,
+                    )
 
                 # Show the live preview window.
                 cv2.imshow('Interactive Camera Control', display_frame)
@@ -146,6 +186,8 @@ def main():
                 # Write frame to video if recording is enabled
                 if is_recording and video_writer:
                     video_writer.write(frame)
+
+                frame_index += 1
 
         # Final check to release video writer if the loop was exited while recording
         if video_writer:
